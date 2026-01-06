@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SaaS Expense & Budget Tracker</title>
+
+<style>
+*{box-sizing:border-box;font-family:"Segoe UI",sans-serif}
+
+body{margin:0;overflow-x:hidden}
+
+/* LOGIN */
+#login{
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(135deg,#52a3eb,#646fe7,#15088f)
+}
+.login-box{
+  width:340px;padding:35px;border-radius:18px;
+  background:rgba(255,255,255,.75);
+  box-shadow:0 20px 40px rgba(0,0,0,.2)
+}
+.login-box input,.login-box button{
+  width:100%;margin-top:12px;padding:14px;
+  border-radius:10px;border:1px solid #c7d2fe
+}
+.login-box button{
+  background:linear-gradient(135deg,#6d28d9,#7c3aed);
+  color:#fff;font-weight:bold;cursor:pointer
+}
+
+/* DASHBOARD */
+#dashboard{
+  display:none;min-height:100vh;
+  background:linear-gradient(135deg,#0f172a,#0f766e,#134e4a);
+  color:#e5e7eb
+}
+header{
+  background:linear-gradient(135deg,#020617,#1e293b);
+  padding:22px;text-align:center;
+  font-size:24px;font-weight:bold
+}
+header .user{font-size:14px;color:#a7f3d0}
+
+.container{padding:25px;max-width:1200px;margin:auto}
+
+/* CARDS */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.glass{
+  background:rgba(255,255,255,.12);
+  backdrop-filter:blur(16px);
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.18)
+}
+.card{text-align:center;padding:18px;animation:floatSoft 6s infinite}
+.card p{font-size:24px;font-weight:bold}
+.income{color:#22c55e}
+.expense{color:#ef4444}
+.balance{color:#38bdf8}
+@keyframes floatSoft{50%{transform:translateY(-6px)}}
+
+/* FORM */
+.form{
+  margin:25px 0;padding:22px;
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:12px
+}
+input,select,button{padding:14px;border-radius:10px;border:none}
+.form input,.form select{background:#ecfeff;color:#020617}
+.form button{
+  background:linear-gradient(135deg,#14b8a6,#0d9488);
+  color:#fff;font-weight:bold
+}
+
+/* TABLE */
+.table{padding:18px}
+.row{
+  display:grid;
+  grid-template-columns:1.5fr 1fr 1fr 1fr 1.8fr 60px;
+  padding:12px 0;border-bottom:1px solid rgba(255,255,255,.15)
+}
+.row.header{font-weight:bold;color:#a7f3d0}
+.delete{
+  background:#ef4444;color:#fff;
+  border-radius:8px;padding:6px;
+  cursor:pointer;text-align:center
+}
+
+/* CHARTS */
+.extra{margin-top:35px;padding:25px}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:25px}
+canvas{background:#ecfeff;border-radius:18px}
+
+.download-btn{
+  margin:10px 10px 20px 0;
+  padding:12px 18px;
+  border-radius:10px;
+  border:none;
+  cursor:pointer;
+  font-weight:bold;
+  background:linear-gradient(135deg,#38bdf8,#22c55e);
+  color:#020617
+}
+
+@media(max-width:768px){
+  .cards,.charts,.form{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-box">
+    <h3>🔐 Login</h3>
+    <input id="user" placeholder="Username">
+    <input id="pass" type="password" placeholder="Password">
+    <button id="loginBtn">Login</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+<header>
+  💰 EXPENSE & BUDGET TRACKER
+  <div class="user">Welcome, <span id="usernameDisplay"></span></div>
+</header>
+
+<div class="container">
+
+<div class="cards">
+  <div class="card glass"><h4>Total Income</h4><p id="income" class="income">₹0</p></div>
+  <div class="card glass"><h4>Total Expense</h4><p id="expense" class="expense">₹0</p></div>
+  <div class="card glass"><h4>Balance</h4><p id="balance" class="balance">₹0</p></div>
+</div>
+
+<div class="form glass">
+  <input id="title" placeholder="Description">
+  <input id="amount" type="number" placeholder="Amount">
+  <select id="type">
+    <option value="income">Income</option>
+    <option value="expense">Expense</option>
+  </select>
+  <button id="add">Add</button>
+</div>
+
+<div class="table glass">
+  <div class="row header">
+    <div>Description</div><div>Amount</div><div>Type</div>
+    <div>Status</div><div>Date & Time</div><div>Action</div>
+  </div>
+  <div id="list"></div>
+</div>
+
+<div class="extra glass">
+  <h3>📊 Analytics</h3>
+
+  <button class="download-btn" id="downloadCharts">⬇ Download Charts</button>
+  <button class="download-btn" id="downloadReport">📄 Download Report</button>
+
+  <div class="charts">
+    <canvas id="pieChart" width="320" height="320"></canvas>
+    <canvas id="barChart" width="320" height="320"></canvas>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+loginBtn.onclick=()=>{
+  if(user.value && pass.value){
+    login.style.display="none";
+    dashboard.style.display="block";
+    usernameDisplay.textContent=user.value;
+    drawCharts();
+  }else alert("Enter credentials");
+};
+
+let totalIncome=0,totalExpense=0;
+add.onclick=()=>addTransaction();
+
+function getDateTime(){return new Date().toLocaleString()}
+
+function addTransaction(){
+  if(!title.value||!amount.value) return alert("Fill fields");
+  const row=document.createElement("div");
+  row.className="row";
+  row.innerHTML=`
+    <div>${title.value}</div>
+    <div>₹${amount.value}</div>
+    <div>${type.value}</div>
+    <div>${type.value==='income'?'Credited':'Debited'}</div>
+    <div>${getDateTime()}</div>
+    <div class="delete">✖</div>`;
+  row.querySelector(".delete").onclick=()=>{
+    type.value==='income'?totalIncome-=+amount.value:totalExpense-=+amount.value;
+    row.remove();updateUI();
+  };
+  list.appendChild(row);
+  type.value==='income'?totalIncome+=+amount.value:totalExpense+=+amount.value;
+  title.value=amount.value="";
+  updateUI();
+}
+
+function updateUI(){
+  income.textContent="₹"+totalIncome;
+  expense.textContent="₹"+totalExpense;
+  balance.textContent="₹"+(totalIncome-totalExpense);
+  drawCharts();
+}
+
+function drawCharts(){animatePie(0);animateBar(0)}
+
+function animatePie(p){
+  const c=pieChart.getContext("2d");
+  c.clearRect(0,0,320,320);
+  const t=totalIncome+totalExpense||1;
+  const a=(totalIncome/t)*Math.PI*2*p;
+  c.lineWidth=40;
+  c.strokeStyle="#22c55e";
+  c.beginPath();c.arc(160,160,120,0,a);c.stroke();
+  c.strokeStyle="#ef4444";
+  c.beginPath();c.arc(160,160,120,a,Math.PI*2*p);c.stroke();
+  c.fillStyle="#0f766e";
+  c.font="bold 18px Segoe UI";
+  c.textAlign="center";
+  c.fillText("₹"+t,160,170);
+  if(p<1) requestAnimationFrame(()=>animatePie(p+.05));
+}
+
+function animateBar(p){
+  const c=barChart.getContext("2d");
+  c.clearRect(0,0,320,320);
+  const m=Math.max(totalIncome,totalExpense,1);
+  const ih=(totalIncome/m)*180*p;
+  const eh=(totalExpense/m)*180*p;
+  c.fillStyle="#22c55e";c.fillRect(90,260-ih,50,ih);
+  c.fillStyle="#ef4444";c.fillRect(180,260-eh,50,eh);
+  c.fillStyle="#020617";
+  c.font="bold 14px Segoe UI";
+  c.textAlign="center";
+  c.fillText("Income",115,285);
+  c.fillText("Expense",205,285);
+  if(p<1) requestAnimationFrame(()=>animateBar(p+.05));
+}
+
+/* DOWNLOAD CHARTS */
+downloadCharts.onclick=()=>{
+  const combo=document.createElement("canvas");
+  combo.width=700;combo.height=350;
+  const ctx=combo.getContext("2d");
+  ctx.fillStyle="#ecfeff";ctx.fillRect(0,0,700,350);
+  ctx.drawImage(pieChart,10,10,320,320);
+  ctx.drawImage(barChart,360,10,320,320);
+  const a=document.createElement("a");
+  a.download="Expense_Analytics.png";
+  a.href=combo.toDataURL();
+  a.click();
+};
+
+/* DOWNLOAD REPORT (CSV) */
+downloadReport.onclick=()=>{
+  let csv="Description,Amount,Type,Status,Date & Time\n";
+  document.querySelectorAll("#list .row").forEach(r=>{
+    const d=r.querySelectorAll("div");
+    csv+=`${d[0].innerText},${d[1].innerText},${d[2].innerText},${d[3].innerText},${d[4].innerText}\n`;
+  });
+  csv+=`\nTotal Income,₹${totalIncome}`;
+  csv+=`\nTotal Expense,₹${totalExpense}`;
+  csv+=`\nBalance,₹${totalIncome-totalExpense}`;
+  const blob=new Blob([csv],{type:"text/csv"});
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="Expense_Report.csv";
+  link.click();
+};
+</script>
+
+</body>
+</html>
